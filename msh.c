@@ -80,7 +80,7 @@ int main(int argc, char* argv[])
 	while (1) 
 	{
 		int status = 0;
-	        int command_counter = 0;
+	    int command_counter = 0;
 		int in_background = 0;
 		signal(SIGINT, siginthandler);
 
@@ -104,8 +104,25 @@ int main(int argc, char* argv[])
                 if (command_counter > MAX_COMMANDS)
                       printf("Error: Numero máximo de comandos es %d \n", MAX_COMMANDS);
                 else {
-            	   // Print command
-		   print_command(argvv, filev, in_background);
+                    printf("Numero de comandos introducidos: %d \n", command_counter);
+                    // Print command
+                    print_command(argvv, filev, in_background);
+                    int pid;
+                    pid = fork();
+                    switch(pid) {
+                        case -1: perror("Error el el fork");
+                        exit(-1);
+                        case 0: 
+                        printf("Soy el proceso HIJO \n");
+                        execvp(argvv[0][0], argvv[0]);
+                        perror("Error en el exec");
+                        break;
+                        default: 
+                        wait(&status);
+                        printf("Soy el proceso padre \n"); 
+                        printf("El pid es %d: \n", pid);
+                        printf("Status: %d\n", status);
+                    }
                 }
               }
         }
