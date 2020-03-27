@@ -15,6 +15,9 @@
 #include <signal.h>
 
 #define MAX_COMMANDS 8
+# define STDIN_FILENO 0
+# define STDOUT_FILENO 1
+# define STDERR_FILENO 2
 
 
 // ficheros por si hay redirección
@@ -100,17 +103,53 @@ int main(int argc, char* argv[])
 
         /************************ STUDENTS CODE ********************************/
         if (command_counter > 0) {
-            if (command_counter > MAX_COMMANDS)
+            if (command_counter > MAX_COMMANDS){
                 printf("Error: Numero máximo de comandos es %d \n", MAX_COMMANDS);
-            else if (command_counter == 1) {
-                //printf("Numero de comandos introducidos: %d \n", command_counter);
-                // Print command
-                //print_command(argvv, filev, in_background);
+                exit(-1); // NECESITAMOS ESTE EXIT? O MEJOR UN RETURN?
+            }
+            
 
+        /****** REDIRECCIONES *****/
+            int fd;
+            
+            if(filev[0] != NULL){ // redirección de entrada
+            fd = open(filev[0], O_RDONLY);
+            if(fd<0){
+                perror("Error al abrir el fichero especificado");
+                exit(-1);
+            }
+            dup2(fd, STDIN_FILENO);
+            close(fd);
+             }
+            
+            else if(filev[1] != NULL){ // redirección de salida - escribimos la salida de la minishell (STDOUT_FILENO) en el fichero especificado
+            fd = open(filev[1], O_WRONLY);
+            if(fd<0){
+                perror("Error al abrir el fichero especificado");
+                exit(-1);
+            }
+            dup2(fd, STDOUT_FILENO);
+            close(fd);
+            }
+
+            else if(filev[2] != NULL){ // redirección de salida error
+            fd = open(filev[2], O_WRONLY);
+            if(fd<0){
+                perror("Error al abrir el fichero especificado");
+                exit(-1);
+            }
+            dup2(fd, STDERR_FILENO);
+            close(fd);
+            }
+
+        /****** SECUENCIAS DE COMANDOS **********/
+
+            else if (command_counter == 1) { //UN SOLO COMANDO
+                printf("Numero de comandos introducidos: %d \n", command_counter);
+                print_command(argvv, filev, in_background);
                 int pid;
                 int result;
-                pid = fork(); //Creamos un hijo para la shell
-
+                pid = fork(); //Creamos un hijo para la minishell
                 switch (pid) {
                     case -1: //Error
                         perror("Error el el fork");
@@ -120,77 +159,85 @@ int main(int argc, char* argv[])
                         perror("Error en el exec");
                         break;
                     default: //Padre
-                        //MANDATOS INTERNOS
-                        /**
-                        result = strcmp(argvv[0][0], "mycalc");
-                        if(result == 0) {
-                            my_calc(argvv[1][0], argvv[2][0], argvv[3][0]);
-                        }
-                        **/
 
-                        //background
-                        if (in_background == 0) {
-                            //proceso sin background
+        /*************** MANDATOS INTERNOS ***************/
+                        
+                        if(strcmp(argvv[0][0], "mycalc") == 0) { // argvv[0][0] es mycalc
+                            my_calc(argvv[0][1], argvv[0][2], argvv[0][3]);
+                        }
+
+                        else if(strcmp(argvv[0][0], "mycp") == 0) { // argvv[0][0] es mycp
+                            my_cp(argvv[0][1], argvv[0][2]);
+                        }
+
+                     
+        /*************** BACKGROUND ***************/
+
+                        if (in_background == 0) { //proceso sin background
                             while (wait(&status) != pid);
-                        } else {
-                            // Proceso en background
+                        }
+                        
+                        else {  // Proceso en background
                             printf("[1] %d \n", getpid());
                         }
                 } //Cierro switch command 1
 
-            } else if (command_counter == 2) {
-                int pid;     //variable pid
-                int status;  //variable de estado
+            } else if (command_counter == 2) { // 2 COMANDOS
+                int pid;
+                int status;
                 int fd[2];  //variable para la tuberia
                 pipe(fd);   //tuberia
-                pid = fork(); //Creamos un proceso hijo
+                pid = fork(); //PRIMER FORK
+                
                 switch (pid) { // switch caso hijo 1
                     case -1: //Error
                         perror("Error el el fork");
                         exit(-1);
-                    case 0: //Hijo
+                    case 0: //HIJO1
                         close(STDOUT_FILENO); //cerramos la salida
-                        dup(fd[1]);
-                        close(fd[0]);
+                        dup(fd[1]); //fd1 => salida estandar
+                        close(fd[0]); 
                         close(fd[1]);
-                        execvp(argvv[0][0], argvv[0]);
+                        execvp(argvv[0][0], argvv[0]); 
 
-                    default: //padre
-                        pid = fork(); //creamos otro proceso hijo
-                        switch (pid) {  //vemos el hijo 2
+                    default: //PADRE (MINISHELL)
+                        pid = fork(); //SEGUNDO FORK
+                        switch (pid) {  //switch caso hijo 2
                             case -1:   //Error en el fork del mandato 2
                                 perror("Error el el fork");
                                 exit(-1);
-                            case 0:   //Hijo 2
+                            case 0:   //HIJO 2
                                 close(STDIN_FILENO);//cerramos la entrada
                                 dup(fd[0]);//duplicamos
                                 close(fd[0]);//cerramos
                                 close(fd[1]);//cerramos
                                 execvp(argvv[1][0], argvv[1]);
 
-                            default: //padre
+                            default: //PADRE (MINISHELL)
                                 close(fd[0]);//cerramos
                                 close(fd[1]);//cerramos
 
-                                if (in_background == 0) {
-                                    //proceso sin background
+                    /*************** BACKGROUND ***************/
+                    // Sólo hay un &, el del final de la linea: el padre espera por toda la secuencia (al final del ultimo comando)
+                                if (in_background == 0) { //proceso sin background
                                     while (wait(&status) != pid);
-                                } else {
-                                    // Proceso en background
+                                } 
+                                
+                                else { // Proceso en background
                                     printf("[1] %d \n", getpid());
                                 }
-                        } // Cierro Switch caso hijo
+
+                        } // Cierro Switch caso hijo 2
                 }//Switch caso hijo 1
 
 
-            } else if (num_commands == 3) {
-                int pid;    //identificador
-                int status; // variable estado
-                int fd[2]; //variable tuberia 1
-                int fd2[2]; //variable tuberia 2
-                pipe(fd);   //tuberia
-                pid = fork(); //proceso hijo 1
-
+            } else if (num_commands == 3) { // 3 COMANDOS
+                int pid;   
+                int status; 
+                int fd[2]; // tuberia 1
+                int fd2[2]; // tuberia 2
+                pipe(fd);   //TUBERIA 1
+                pid = fork(); //PRIMER FORK
                 switch (pid) {
                     case -1:   //Error en el fork del mandato 1
                         perror("Error el el fork");
@@ -204,57 +251,81 @@ int main(int argc, char* argv[])
                         perror("Error en el execvp del primer mandato\n");
                         return -1;
                     default:
-                        pipe(fd2); //tuberia 2
-                        pid = fork(); //proceso hijo 2
+                        pipe(fd2); //TUBERIA 2
+                        pid = fork(); //SEGUNDO FORK
                         switch (pid) {
                             case -1:   //Error en el fork del segundo mandato
                                 perror("Error el el fork");
                                 exit(-1);
-                            case 0:   //Hijo 1
+                            case 0:   //HIJO 1
                                 close(STDIN_FILENO);//cerramos la entrada estandar
                                 dup(fd[0]);//duplicamos
                                 close(STDOUT_FILENO);//cerramos la salida estandar
-                                dup(fd2[1]);//duplicamoss
-                                close(fd[0]);//cerramos
-                                close(fd[1]);//cerramos
-                                close(fd2[0]);//cerramos
-                                close(fd2[1]);//cerramos
+                                dup(fd2[1]);//duplicamos
+                                close(fd[0]);
+                                close(fd[1]);
+                                close(fd2[0]);
+                                close(fd2[1]);
                                 execvp(argvv[1][0], argvv[1]);
                                 perror("Error en el execvp del segundo mandato\n");
                                 return -1;
-                            default: //padre
-                                close(fd[0]); //cerramos
-                                close(fd[1]); //cerramos
-                                pid = fork(); //proceso hijo 3
-                                switch (pid) { //casos del hijo 3
+                            default: //PADRE 1 (MINISHELL)
+                                close(fd[0]); 
+                                close(fd[1]); 
+                                pid = fork(); // FORK 3
+                                switch (pid) { 
                                     case -1:  //Error en el fork del tercer mandato
                                         perror("Error el el fork");
                                         exit(-1);
                                     case 0:
                                         close(STDIN_FILENO);//cerramos la entrada estandar
                                         dup(fd2[0]);//duplicamos
-                                        close(fd2[0]);//cerramos
-                                        close(fd2[1]);//cerramos
+                                        close(fd2[0]);
+                                        close(fd2[1]);
                                         execvp(argvv[2][0], argvv[2]);
                                         perror("Error en el execvp del tercer mandato\n");
-                                    default: //padre
-                                        close(fd2[0]);//cerramos
-                                        close(fd2[1]);//cerramos
-                                        if (in_background == 0) {
-                                            //proceso sin background
+                                    default: // PADRE 2
+                                        close(fd2[0]);
+                                        close(fd2[1]);
+
+                                /*************** BACKGROUND ***************/
+                                        if (in_background == 0) { //proceso sin background
                                             while (wait(&status) != pid);
-                                        } else {
-                                            // Proceso en background
+                                        } 
+                                        
+                                        else { // Proceso en background
                                             printf("[1] %d \n", getpid());
                                         }
                                 } // Fin switch casos del hijo 3
                         }// Fin switch casos del hijo 2
                 } // Fin switch casos del hijo 1
             } // primer else if
-
         } // cierro if command > 0
     } // cierro while
 	return 0;
 } //cierro main
 
-//my_calc(char  )
+int my_calc(char op1, char operador, char op2){
+    // COMPROBAR que los argumentos no son null/ vacíos *****************************************
+    int Acc = 0; // variable de retorno
+    int num1 = atoi(op1); // convertimos op1 y op2 a int
+    int num2 = atoi(op2);
+    if(strcmp(operador, "add") == 0){ // CASO ADD
+        /* char mensaje[] = {"[OK] %d", Acc}
+        write(STDERR_FILENO, mensaje, ); antigua solución, creemos que vale con un perror pq imprime un msg por stderr*/
+        Acc = num1 + num2;
+       // SI FUNCIONA LA SUMA: Escribir en la salida estandar de error el mensaje: [OK] num1 + num2 = Acc; Acc Acc
+        perror("[OK] %d + %d = %d; Acc %d ", num1, num2, Acc, Acc); 
+        // SI NO FUNCIONA: Escribir el resultado en la salida estandar el mensaje: [ERROR] -> AÑADIR ESTA OPCION EN LAS COMPROBACIONES
+    }
+    else if(strcmp(operador, "mod") == 0){ //CASO MOD
+        //mod
+    }
+    else{ // OPERADOR ERRÓNEO
+        perror("ERROR: no se encuentra la operación especificada");
+        exit(-1);
+    }
+}
+
+
+
