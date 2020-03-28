@@ -75,12 +75,15 @@ int my_calc(char *op1, char *operador, char *op2){
     }
 
     else if(strcmp(operador, "mod") == 0){ //CASO MOD
+        else if(strcmp(operador, "mod") == 0){ //CASO MOD
         int num1 = atoi(op1); // convertimos op1 y op2 a int
         int num2 = atoi(op2);
         int cociente = num1/num2;
         int resto = num1%num2;
-        printf("[OK] %d + %d = %d; Acc %d \n", num1, num2, Acc, Acc);
+        printf("[OK] %d %% %d = %d * %d + %d \n", num1, num2, num2, resto, cociente);
+        exit(0);
     }
+        
     else{ // OPERADOR ERRÓNEO
         perror("ERROR: no se encuentra la operación especificada \n");
         exit(-1);
