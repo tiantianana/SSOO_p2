@@ -50,6 +50,30 @@ void getCompleteCommand(char*** argvv, int num_command) {
         argv_execvp[i] = argvv[num_command][i];
 }
 
+//******************* MANDATOS INTERNOS ************************
+ 
+ /* 
+ int my_calc(char *op1, char *operador, char *op2){
+     int Acc = 0;
+    // COMPROBAR que los argumentos no son null/ vacíos ********
+    int num1 = atoi(op1); // convertimos op1 y op2 a int
+    int num2 = atoi(op2);
+    if(strcmp(operador, "add") == 0){ // CASO ADD
+        // char mensaje[] = {"[OK] %d", Acc}
+       // write(STDERR_FILENO, mensaje, ); antigua solución, creemos que vale con un perror pq imprime un msg por stderr
+        Acc = num1 + num2;
+       // SI FUNCIONA LA SUMA: Escribir en la salida estandar de error el mensaje: [OK] num1 + num2 = Acc; Acc Acc
+        perror("[OK] %d + %d = %d; Acc %d ", num1, num2, Acc, Acc); 
+        // SI NO FUNCIONA: Escribir el resultado en la salida estandar el mensaje: [ERROR] -> AÑADIR ESTA OPCION EN LAS COMPROBACIONES
+    }
+    else if(strcmp(operador, "mod") == 0){ //CASO MOD
+        //mod
+    }
+    else{ // OPERADOR ERRÓNEO
+        perror("ERROR: no se encuentra la operación especificada");
+        exit(-1);
+    }
+} */
 
 /**
  * Main sheell  Loop  
@@ -107,12 +131,12 @@ int main(int argc, char* argv[])
                 printf("Error: Numero máximo de comandos es %d \n", MAX_COMMANDS);
                 exit(-1); // NECESITAMOS ESTE EXIT? O MEJOR UN RETURN?
             }
-            
 
         /****** REDIRECCIONES *****/
             int fd;
             
-            if(filev[0] != NULL){ // redirección de entrada
+            if(strcmp(filev[0], "0") != 0){ // redirección de entrada
+            printf("filev[0] = %s \n", filev[0]);
             fd = open(filev[0], O_RDONLY);
             if(fd<0){
                 perror("Error al abrir el fichero especificado");
@@ -122,7 +146,7 @@ int main(int argc, char* argv[])
             close(fd);
              }
             
-            else if(filev[1] != NULL){ // redirección de salida - escribimos la salida de la minishell (STDOUT_FILENO) en el fichero especificado
+            else if(strcmp(filev[1], "0") != 0){ // redirección de salida - escribimos la salida de la minishell (STDOUT_FILENO) en el fichero especificado
             fd = open(filev[1], O_WRONLY);
             if(fd<0){
                 perror("Error al abrir el fichero especificado");
@@ -132,7 +156,7 @@ int main(int argc, char* argv[])
             close(fd);
             }
 
-            else if(filev[2] != NULL){ // redirección de salida error
+            else if(strcmp(filev[2], "0") != 0){ // redirección de salida error
             fd = open(filev[2], O_WRONLY);
             if(fd<0){
                 perror("Error al abrir el fichero especificado");
@@ -161,7 +185,7 @@ int main(int argc, char* argv[])
                     default: //Padre
 
         /*************** MANDATOS INTERNOS ***************/
-                        
+          /*              
                         if(strcmp(argvv[0][0], "mycalc") == 0) { // argvv[0][0] es mycalc
                             my_calc(argvv[0][1], argvv[0][2], argvv[0][3]);
                         }
@@ -169,7 +193,7 @@ int main(int argc, char* argv[])
                         else if(strcmp(argvv[0][0], "mycp") == 0) { // argvv[0][0] es mycp
                             my_cp(argvv[0][1], argvv[0][2]);
                         }
-
+*/
                      
         /*************** BACKGROUND ***************/
 
@@ -304,28 +328,6 @@ int main(int argc, char* argv[])
     } // cierro while
 	return 0;
 } //cierro main
-
-int my_calc(char op1, char operador, char op2){
-    // COMPROBAR que los argumentos no son null/ vacíos *****************************************
-    int Acc = 0; // variable de retorno
-    int num1 = atoi(op1); // convertimos op1 y op2 a int
-    int num2 = atoi(op2);
-    if(strcmp(operador, "add") == 0){ // CASO ADD
-        /* char mensaje[] = {"[OK] %d", Acc}
-        write(STDERR_FILENO, mensaje, ); antigua solución, creemos que vale con un perror pq imprime un msg por stderr*/
-        Acc = num1 + num2;
-       // SI FUNCIONA LA SUMA: Escribir en la salida estandar de error el mensaje: [OK] num1 + num2 = Acc; Acc Acc
-        perror("[OK] %d + %d = %d; Acc %d ", num1, num2, Acc, Acc); 
-        // SI NO FUNCIONA: Escribir el resultado en la salida estandar el mensaje: [ERROR] -> AÑADIR ESTA OPCION EN LAS COMPROBACIONES
-    }
-    else if(strcmp(operador, "mod") == 0){ //CASO MOD
-        //mod
-    }
-    else{ // OPERADOR ERRÓNEO
-        perror("ERROR: no se encuentra la operación especificada");
-        exit(-1);
-    }
-}
 
 
 
