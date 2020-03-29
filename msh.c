@@ -50,9 +50,46 @@ void getCompleteCommand(char*** argvv, int num_command) {
         argv_execvp[i] = argvv[num_command][i];
 }
 
-//******************* MANDATOS INTERNOS ************************
+//******************* MANDATOS INTERNOS (AÚN NO COMPILA ESTE BLOQUE )************************ 
 
+/* int my_calc(char *op1, char *operador, char *op2){
+    // COMPROBAR que los argumentos no son null/ vacíos ***************
+    int Acc = 0; // variable de retorno
+    int num1 = atoi(op1); // convertimos op1 y op2 a int
+    int num2 = atoi(op2);
+    //  Pruebas para ver que imprime cada número
+    // printf("numero 1: %d \n", num1);
+    // printf("numero 2: %d \n", num2);
+    // printf("operador: %s \n", operador);
 
+    if(strcmp(operador,"add") == 0){ // CASO ADD
+    //char mensaje[] = {"[OK] %d", Acc}
+    // write(STDERR_FILENO, mensaje, ); antigua solución, creemos que vale con un perror pq imprime un msg por stderr
+        Acc = num1 + num2;
+        // SI FUNCIONA LA SUMA: Escribir en la salida estandar de error el mensaje: [OK] num1 + num2 = Acc; Acc Acc
+        //char *resultado;
+        //resultado = ("[OK] %d + %d = %d; Acc %d ", num1, num2, Acc, Acc);
+        printf("[OK] %d + %d = %d; Acc %d \n", num1, num2, Acc, Acc);
+        //perror(resultado);
+        // SI NO FUNCIONA: Escribir el resultado en la salida estandar el mensaje: [ERROR] -> AÑADIR ESTA OPCION EN LAS COMPROBACIONES
+        exit(0);
+    } 
+
+    else if(strcmp(operador, "mod") == 0){ //CASO MOD
+        else if(strcmp(operador, "mod") == 0){ //CASO MOD
+        int num1 = atoi(op1); // convertimos op1 y op2 a int
+        int num2 = atoi(op2);
+        int cociente = num1/num2;
+        int resto = num1%num2;
+        printf("[OK] %d %% %d = %d * %d + %d \n", num1, num2, num2, resto, cociente);
+        exit(0);
+    }
+        
+    else{ // OPERADOR ERRÓNEO
+        perror("ERROR: no se encuentra la operación especificada \n");
+        exit(-1);
+    }
+} */
 
 /**
  * Main sheell  Loop
@@ -108,49 +145,85 @@ int main(int argc, char* argv[])
         if (command_counter > 0) {
             if (command_counter > MAX_COMMANDS) {
                 printf("Error: Numero máximo de comandos es %d \n", MAX_COMMANDS);
-                exit(-1); // NECESITAMOS ESTE EXIT? O MEJOR UN RETURN?
+                exit(-1);
             }
 
-            else { 
-            int fd[2];
-            int pid;
-            int savestdin = dup(STDIN_FILENO); // guardo la entrada estandar en el primer fd vacio
-            int savestdout = dup(STDOUT_FILENO); // guardo la salida estandar en el primer fd vacio
-            for(int i = 0; i < command_counter; i++){
-                pipe(fd);  // creo la tubería (posterior)
-                if(i == command_counter-1){ //ÚLTIMO HIJO 
-                    close(fd[1]);
-                }
-                else{ // DEMÁS HIJOS
-                    dup2(fd[1], STDOUT_FILENO); //Dejo la escritura de la nueva pipe en la salida (y la cierro)
-                    close(fd[1]);               // No cierro aquí la lectura de la tubería porque la necesita el padre para concatenarla al siguiente hijo
-                }
+            else {
+                int fd[2];
+                int pid;
+                int savestdin = dup(STDIN_FILENO); // guardo la entrada estandar en el primer fd vacio
+                int savestdout = dup(STDOUT_FILENO); // guardo la salida estandar en el primer fd vacio
+                for(int i = 0; i < command_counter; i++){
+                    pipe(fd);  // creo la tubería (posterior)
+                    if(i == command_counter-1){ //ÚLTIMO HIJO - No necesito la última tubería (cierro fd[1], el proceso hijo y el padre cierran fd[0])
+                        close(fd[1]);
+                        
+                        // ***************  REDIRECCIONES (las defino dentro del último hijo) **********
+                        int fich;
+                        if(strcmp(filev[0], "0") != 0){ // REDIRECCIÓN DE ENTRADA
+                            printf("filev[0] = %s \n", filev[0]); //??
+                            close(STDIN_FILENO); 
+                            fich = open(filev[0], O_RDONLY); // Open utiliza el primer descriptor disponible de la tabla (el que acabamos de cerrar)
+                            if(fich<0){
+                                perror("Error al abrir el fichero especificado");
+                                exit(-1);
+                            }
+                        }
+                        else if(strcmp(filev[1], "0") != 0){ // REDIRECCIÓN DE SALIDA - escribimos la salida de la minishell (STDOUT_FILENO) en el fichero especificado
+                            close(STDOUT_FILENO);
+                            fich = open(filev[1],O_CREAT|O_WRONLY, 0666);
+                            if(fich<0){
+                                perror("Error al abrir el fichero especificado");
+                                exit(-1);
+                            }
+                        }
+                        else if(strcmp(filev[2], "0") != 0){ // REDIRECCIÓN DE SALIDA ERROR
+                            close(STDERR_FILENO);
+                            fich = open(filev[2], O_WRONLY, 0666);
+                            if(fich<0){
+                                perror("Error al abrir el fichero especificado");
+                                exit(-1);
+                            }
+                        }
+                    }
 
-                pid = fork();
-                if(pid == 0){
-                    close(fd[0]); // La entrada del hijo es la lectura de la tubería anterior (no necesita la de la nueva, la cierra) 
-                    execvp(argvv[i][0], argvv[i]); // En este punto el hijo lee de la tubería de la iteración anterior y escribe en la actual 
-                    break;
-                } else if (pid < 0){
-                    perror("Error el el fork");
-                    exit(-1);
-                } else{ 
-                    wait(&status); // espera que el hijo acabe antes de crear el siguiente
-                    dup2(fd[0], STDIN_FILENO); // Dejo la entrada/lectura de la tubería actual en la entrada (del siguiente hijo que creemos)
-                    dup2(savestdout, STDOUT_FILENO); // Dejo la salida estándar en su sitio (1)
-                    close(fd[0]);
-                }
+                    else{ // DEMÁS HIJOS
+                        dup2(fd[1], STDOUT_FILENO); //Dejo la escritura de la nueva tuberia en la salida (y la cierro)
+                        close(fd[1]);               // No cierro aquí la lectura de la tubería porque la necesita el padre para concatenarla al siguiente hijo
+                    }
 
-            }// for
-            dup2(savestdin, STDIN_FILENO);
-            close(savestdin);
-            close(savestdout);
+                    pid = fork();
+                    if(pid == 0){
+                        close(fd[0]); // La entrada del hijo es la lectura de la tubería anterior (no necesita la de la nueva, la cierra) 
+                        execvp(argvv[i][0], argvv[i]); // En este punto el hijo lee de la tubería de la iteración anterior y escribe en la actual 
+                        break;
+                    } else if (pid < 0){
+                        perror("Error el el fork");
+                        exit(-1);
+                    } else{ //padre
+                        if(i == command_counter-1){ // Al crear el último hijo, compruebo si está en bg (el valor de una secuencia es el valor de su último mandato)
+                            if (in_background == 1) { //proceso (o secuencia) en background
+                                printf("[1] %d \n", getpid());
+                                dup2(savestdout, STDOUT_FILENO); // Dejo la salida estándar en su sitio (1)
+                                close(fd[0]);
+                                break; // me salgo sin hacer wait
+                            }
+                        }
+                        wait(&status); // espera que el hijo acabe antes de crear el siguiente
+                        dup2(fd[0], STDIN_FILENO); // Dejo la entrada/lectura de la tubería actual en la entrada (del siguiente hijo que creemos)
+                        dup2(savestdout, STDOUT_FILENO); // Dejo la salida estándar en su sitio (1)
+                        close(fd[0]);
+                    }
 
-            
+                }// for
+
+                dup2(savestdin, STDIN_FILENO); // Devuelvo la entrada estándar a su sitio (la salida ya lo está)
+                close(savestdin);
+                close(savestdout);
 
             }// else
-
         } // cierro if command > 0
+        wait(&status); //recojo a los hijos
     } // cierro while
     return 0;
 } //cierro main
