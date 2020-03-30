@@ -18,6 +18,7 @@
 # define STDIN_FILENO 0
 # define STDOUT_FILENO 1
 # define STDERR_FILENO 2
+#define BUFFER_SIZE 256
 
 
 // ficheros por si hay redirección
@@ -52,19 +53,19 @@ void getCompleteCommand(char*** argvv, int num_command) {
 
 //******************* MANDATOS INTERNOS (AÚN NO COMPILA ESTE BLOQUE )************************ 
 
-/* int my_calc(char *op1, char *operador, char *op2){
+int my_calc(char *op1, char *operador, char *op2){
     // COMPROBAR que los argumentos no son null/ vacíos ***************
     int Acc = 0; // variable de retorno
     int num1 = atoi(op1); // convertimos op1 y op2 a int
     int num2 = atoi(op2);
-    //  Pruebas para ver que imprime cada número
-    // printf("numero 1: %d \n", num1);
-    // printf("numero 2: %d \n", num2);
-    // printf("operador: %s \n", operador);
-
+    /* Pruebas para ver que imprime cada número
+    printf("numero 1: %d \n", num1);
+    printf("numero 2: %d \n", num2);
+    printf("operador: %s \n", operador);
+    */
     if(strcmp(operador,"add") == 0){ // CASO ADD
-    //char mensaje[] = {"[OK] %d", Acc}
-    // write(STDERR_FILENO, mensaje, ); antigua solución, creemos que vale con un perror pq imprime un msg por stderr
+        /* char mensaje[] = {"[OK] %d", Acc}
+        write(STDERR_FILENO, mensaje, ); antigua solución, creemos que vale con un perror pq imprime un msg por stderr*/
         Acc = num1 + num2;
         // SI FUNCIONA LA SUMA: Escribir en la salida estandar de error el mensaje: [OK] num1 + num2 = Acc; Acc Acc
         //char *resultado;
@@ -73,10 +74,8 @@ void getCompleteCommand(char*** argvv, int num_command) {
         //perror(resultado);
         // SI NO FUNCIONA: Escribir el resultado en la salida estandar el mensaje: [ERROR] -> AÑADIR ESTA OPCION EN LAS COMPROBACIONES
         exit(0);
-    } 
-
+    }
     else if(strcmp(operador, "mod") == 0){ //CASO MOD
-        else if(strcmp(operador, "mod") == 0){ //CASO MOD
         int num1 = atoi(op1); // convertimos op1 y op2 a int
         int num2 = atoi(op2);
         int cociente = num1/num2;
@@ -84,12 +83,52 @@ void getCompleteCommand(char*** argvv, int num_command) {
         printf("[OK] %d %% %d = %d * %d + %d \n", num1, num2, num2, resto, cociente);
         exit(0);
     }
-        
     else{ // OPERADOR ERRÓNEO
         perror("ERROR: no se encuentra la operación especificada \n");
         exit(-1);
     }
-} */
+}
+int my_cp(char *ficheroOrigen, char *ficheroDestino){
+
+    /***COMPROBACIONES****/
+    if(ficheroDestino == NULL){ //Comprobamos que tenga la sintaxis que requiere el mandato
+        perror("[ERROR] La estructura del comando es mycp <fichero origen> <fichero destino> \n");
+        exit(-1);
+    }
+    else if(open(ficheroOrigen, O_RDONLY)<0){ //Comprobamos que el fichero origen exista
+        perror("[ERROR] Error al abrir el fichero origen \n");
+        exit(-1);
+    } else{
+        int n_char;
+        char buf[BUFFER_SIZE];
+
+        int fich1 = open(ficheroOrigen, O_RDONLY);
+        if(fich1 < 0) {
+            perror("Error al abrir el archivo origen");
+        }
+        int fich2 = open(ficheroDestino, O_CREAT|O_WRONLY, 0666);
+        if(fich2 < 0) {
+            perror("Error al abrir el archivo destino");
+        }
+
+        while(n_char = read(fich1, buf, BUFFER_SIZE) > 0) {
+            if(write(fich2, buf, n_char) != n_char) {
+                perror("Error al escribrir");
+            }
+            if(n_char == -1){
+                perror("Error al leer");
+            }
+            //printf("%d: %s", n_char, buf);
+            write(fich2, buf, BUFFER_SIZE);
+        }
+
+        close(fich1);
+        close(fich2);
+        printf("[OK] Copiado con éxito el fichero %s en %s\n", ficheroOrigen, ficheroDestino);
+        exit(0);
+
+    }
+}
 
 /**
  * Main sheell  Loop
@@ -146,6 +185,14 @@ int main(int argc, char* argv[])
             if (command_counter > MAX_COMMANDS) {
                 printf("Error: Numero máximo de comandos es %d \n", MAX_COMMANDS);
                 exit(-1);
+            }
+
+            if(strcmp(argvv[0][0], "mycalc") == 0) { // argvv[0][0] es mycalc
+                my_calc(argvv[0][1], argvv[0][2], argvv[0][3]);
+            }
+
+            else if(strcmp(argvv[0][0], "mycp") == 0) { // argvv[0][0] es mycp
+                my_cp(argvv[0][1], argvv[0][2]);
             }
 
             else {
