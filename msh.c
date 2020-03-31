@@ -99,7 +99,7 @@ int my_cp(char *ficheroOrigen, char *ficheroDestino){
         perror("[ERROR] Error al abrir el fichero origen \n");
         exit(-1);
     } else{
-        int n_char;
+        int copia;
         char buf[BUFFER_SIZE];
 
         int fich1 = open(ficheroOrigen, O_RDONLY);
@@ -111,11 +111,11 @@ int my_cp(char *ficheroOrigen, char *ficheroDestino){
             perror("Error al abrir el archivo destino");
         }
 
-        while(n_char = read(fich1, buf, BUFFER_SIZE) > 0) {
-            if(write(fich2, buf, n_char) != n_char) {
+        while(copia = read(fich1, buf, BUFFER_SIZE) > 0) {
+            if(write(fich2, buf, copia) != copia) {
                 perror("Error al escribrir");
             }
-            if(n_char == -1){
+            if(copia == -1){
                 perror("Error al leer");
             }
             //printf("%d: %s", n_char, buf);
