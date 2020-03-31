@@ -86,28 +86,28 @@ int my_calc(char *op1, char *operador, char *op2){
         exit(-1);
     }
 }
-int my_cp(char *ficheroOrigen, char *ficheroDestino){
+int my_cp(char *ficheroOrigen, char *ficheroDestino) {
 
     /***COMPROBACIONES****/
-    if(ficheroDestino == NULL){ //Comprobamos que tenga la sintaxis que requiere el mandato
+    if (ficheroDestino == NULL && ficheroOrigen == NULL || ficheroDestino == NULL ||
+        ficheroOrigen == NULL) { //Comprobamos que tenga la sintaxis que requiere el mandato
         fprintf(stderr, "%s", "[ERROR] La estructura del comando es mycp <fichero origen> <fichero destino> \n");
         exit(-1);
-    }
-    else if(open(ficheroOrigen, O_RDONLY)<0){ //Comprobamos que el fichero origen exista
+    } else if (open(ficheroOrigen, O_RDONLY) < 0) { //Comprobamos que el fichero origen exista
         fprintf(stderr, "%s", "[ERROR] Error al abrir el fichero origen \n");
         exit(-1);
-    } else{
+    }   else{
         int copia;
         char buf[BUFFER_SIZE];
         //Abrimos el fich1 en modo solo lectura.
         int fich1 = open(ficheroOrigen, O_RDONLY);
         if(fich1 < 0) {
-            fprintf(stderr, "%s", "Error al abrir el archivo origen");
+            fprintf(stderr, "%s", "[ERROR] Error al abrir el archivo origen");
         }
         //Abrimos el fich2, si no existe lo crea, en modo lectura y escritura.
         int fich2 = open(ficheroDestino, O_CREAT|O_WRONLY, 0666);
         if(fich2 < 0) {
-            fprintf(stderr, "%s", "Error al abrir el archivo destino");
+            fprintf(stderr, "%s", "[ERROR] Error al abrir el archivo destino");
         }
 
         //Copiamos el contenido de fich1 en el buf
@@ -124,7 +124,7 @@ int my_cp(char *ficheroOrigen, char *ficheroDestino){
 
         close(fich1);   //cerramos el archivo origen
         close(fich2);   //cerramos el archivo destino
-        printf("[OK] Copiado con éxito el fichero %s en %s\n", ficheroOrigen, ficheroDestino);
+        printf("[OK] Copiado con exito el fichero %s a %s\n", ficheroOrigen, ficheroDestino);
         exit(0);
 
     }
