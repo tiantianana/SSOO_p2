@@ -51,7 +51,7 @@ void getCompleteCommand(char*** argvv, int num_command) {
         argv_execvp[i] = argvv[num_command][i];
 }
 
-//******************* MANDATOS INTERNOS (AÚN NO COMPILA ESTE BLOQUE )************************ 
+//******************* MANDATOS INTERNOS (AÚN NO COMPILA ESTE BLOQUE )************************
 
 int my_calc(char *op1, char *operador, char *op2){
     // COMPROBAR que los argumentos no son null/ vacíos ***************
@@ -76,15 +76,13 @@ int my_calc(char *op1, char *operador, char *op2){
         exit(0);
     }
     else if(strcmp(operador, "mod") == 0){ //CASO MOD
-        int num1 = atoi(op1); // convertimos op1 y op2 a int
-        int num2 = atoi(op2);
         int cociente = num1/num2;
         int resto = num1%num2;
         printf("[OK] %d %% %d = %d * %d + %d \n", num1, num2, num2, resto, cociente);
         exit(0);
     }
     else{ // OPERADOR ERRÓNEO
-        perror("ERROR: no se encuentra la operación especificada \n");
+        fprintf(stderr, "%s", "ERROR: no se encuentra la operación especificada \n");
         exit(-1);
     }
 }
@@ -92,38 +90,40 @@ int my_cp(char *ficheroOrigen, char *ficheroDestino){
 
     /***COMPROBACIONES****/
     if(ficheroDestino == NULL){ //Comprobamos que tenga la sintaxis que requiere el mandato
-        perror("[ERROR] La estructura del comando es mycp <fichero origen> <fichero destino> \n");
+        fprintf(stderr, "%s", "[ERROR] La estructura del comando es mycp <fichero origen> <fichero destino> \n");
         exit(-1);
     }
     else if(open(ficheroOrigen, O_RDONLY)<0){ //Comprobamos que el fichero origen exista
-        perror("[ERROR] Error al abrir el fichero origen \n");
+        fprintf(stderr, "%s", "[ERROR] Error al abrir el fichero origen \n");
         exit(-1);
     } else{
         int copia;
         char buf[BUFFER_SIZE];
-
+        //Abrimos el fich1 en modo solo lectura.
         int fich1 = open(ficheroOrigen, O_RDONLY);
         if(fich1 < 0) {
-            perror("Error al abrir el archivo origen");
+            fprintf(stderr, "%s", "Error al abrir el archivo origen");
         }
+        //Abrimos el fich2, si no existe lo crea, en modo lectura y escritura.
         int fich2 = open(ficheroDestino, O_CREAT|O_WRONLY, 0666);
         if(fich2 < 0) {
-            perror("Error al abrir el archivo destino");
+            fprintf(stderr, "%s", "Error al abrir el archivo destino");
         }
 
+        //Copiamos el contenido de fich1 en el buf
         while(copia = read(fich1, buf, BUFFER_SIZE) > 0) {
             if(write(fich2, buf, copia) != copia) {
-                perror("Error al escribrir");
+                fprintf(stderr, "%s", "Error al escribrir");
             }
             if(copia == -1){
-                perror("Error al leer");
+                fprintf(stderr, "%s", "Error al leer");
             }
-            //printf("%d: %s", n_char, buf);
+            //Escribimos en fich2 el contenido del buf
             write(fich2, buf, BUFFER_SIZE);
         }
 
-        close(fich1);
-        close(fich2);
+        close(fich1);   //cerramos el archivo origen
+        close(fich2);   //cerramos el archivo destino
         printf("[OK] Copiado con éxito el fichero %s en %s\n", ficheroOrigen, ficheroDestino);
         exit(0);
 
@@ -183,7 +183,7 @@ int main(int argc, char* argv[])
         /************************ STUDENTS CODE ********************************/
         if (command_counter > 0) {
             if (command_counter > MAX_COMMANDS) {
-                printf("Error: Numero máximo de comandos es %d \n", MAX_COMMANDS);
+                fprintf(stderr, "%s", "Error: Numero máximo de comandos es 8");
                 exit(-1);
             }
 
@@ -204,15 +204,15 @@ int main(int argc, char* argv[])
                     pipe(fd);  // creo la tubería (posterior)
                     if(i == command_counter-1){ //ÚLTIMO HIJO - No necesito la última tubería (cierro fd[1], el proceso hijo y el padre cierran fd[0])
                         close(fd[1]);
-                        
+
                         // ***************  REDIRECCIONES (las defino dentro del último hijo) **********
                         int fich;
                         if(strcmp(filev[0], "0") != 0){ // REDIRECCIÓN DE ENTRADA
-                            printf("filev[0] = %s \n", filev[0]); //??
-                            close(STDIN_FILENO); 
+                            //printf("filev[0] = %s \n", filev[0]); //??
+                            close(STDIN_FILENO);
                             fich = open(filev[0], O_RDONLY); // Open utiliza el primer descriptor disponible de la tabla (el que acabamos de cerrar)
                             if(fich<0){
-                                perror("Error al abrir el fichero especificado");
+                                fprintf(stderr, "%s", "Error al abrir el fichero especificado");
                                 exit(-1);
                             }
                         }
@@ -220,7 +220,7 @@ int main(int argc, char* argv[])
                             close(STDOUT_FILENO);
                             fich = open(filev[1],O_CREAT|O_WRONLY, 0666);
                             if(fich<0){
-                                perror("Error al abrir el fichero especificado");
+                                fprintf(stderr, "%s", "Error al abrir el fichero especificado");
                                 exit(-1);
                             }
                         }
@@ -228,7 +228,7 @@ int main(int argc, char* argv[])
                             close(STDERR_FILENO);
                             fich = open(filev[2], O_WRONLY, 0666);
                             if(fich<0){
-                                perror("Error al abrir el fichero especificado");
+                                fprintf(stderr, "%s", "Error al abrir el fichero especificado");
                                 exit(-1);
                             }
                         }
@@ -241,16 +241,16 @@ int main(int argc, char* argv[])
 
                     pid = fork();
                     if(pid == 0){
-                        close(fd[0]); // La entrada del hijo es la lectura de la tubería anterior (no necesita la de la nueva, la cierra) 
-                        execvp(argvv[i][0], argvv[i]); // En este punto el hijo lee de la tubería de la iteración anterior y escribe en la actual 
+                        close(fd[0]); // La entrada del hijo es la lectura de la tubería anterior (no necesita la de la nueva, la cierra)
+                        execvp(argvv[i][0], argvv[i]); // En este punto el hijo lee de la tubería de la iteración anterior y escribe en la actual
                         break;
                     } else if (pid < 0){
-                        perror("Error el el fork");
+                        fprintf(stderr, "%s", "Error el el fork");
                         exit(-1);
                     } else{ //padre
                         if(i == command_counter-1){ // Al crear el último hijo, compruebo si está en bg (el valor de una secuencia es el valor de su último mandato)
                             if (in_background == 1) { //proceso (o secuencia) en background
-                                printf("[1] %d \n", getpid());
+                                //printf("[1] %d \n", getpid());
                                 dup2(savestdout, STDOUT_FILENO); // Dejo la salida estándar en su sitio (1)
                                 close(fd[0]);
                                 break; // me salgo sin hacer wait
@@ -274,4 +274,3 @@ int main(int argc, char* argv[])
     } // cierro while
     return 0;
 } //cierro main
-
