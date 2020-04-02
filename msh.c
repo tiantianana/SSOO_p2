@@ -18,8 +18,7 @@
 # define STDIN_FILENO 0
 # define STDOUT_FILENO 1
 # define STDERR_FILENO 2
-#define BUFFER_SIZE 256
-
+# define BUFFER_SIZE 1024
 
 // ficheros por si hay redirección
 char filev[3][64];
@@ -70,31 +69,30 @@ int my_calc(char *op1, char *operador, char *op2){
         // SI FUNCIONA LA SUMA: Escribir en la salida estandar de error el mensaje: [OK] num1 + num2 = Acc; Acc Acc
         //char *resultado;
         //resultado = ("[OK] %d + %d = %d; Acc %d ", num1, num2, Acc, Acc);
-        printf("[OK] %d + %d = %d; Acc %d \n", num1, num2, Acc, Acc);
+        fprintf(stdout, "[OK] %d + %d = %d; Acc %d \n", num1, num2, Acc, Acc);
         //perror(resultado);
         // SI NO FUNCIONA: Escribir el resultado en la salida estandar el mensaje: [ERROR] -> AÑADIR ESTA OPCION EN LAS COMPROBACIONES
-        exit(0);
     }
     else if(strcmp(operador, "mod") == 0){ //CASO MOD
         int cociente = num1/num2;
         int resto = num1%num2;
-        printf("[OK] %d %% %d = %d * %d + %d \n", num1, num2, num2, resto, cociente);
-        exit(0);
+        fprintf(stdout, "[OK] %d %% %d = %d * %d + %d \n", num1, num2, num2, resto, cociente);
     }
     else{ // OPERADOR ERRÓNEO
-        fprintf(stderr, "%s", "ERROR: no se encuentra la operación especificada \n");
+        fprintf(stdout, "%s", "ERROR: no se encuentra la operación especificada \n");
         exit(-1);
     }
 }
+
 int my_cp(char *ficheroOrigen, char *ficheroDestino) {
 
-    /***COMPROBACIONES****/
+    //Comprobamos parametros
     if (ficheroDestino == NULL && ficheroOrigen == NULL || ficheroDestino == NULL ||
         ficheroOrigen == NULL) { //Comprobamos que tenga la sintaxis que requiere el mandato
-        fprintf(stderr, "%s", "[ERROR] La estructura del comando es mycp <fichero origen> <fichero destino> \n");
+        write(STDOUT_FILENO, "[ERROR] La estructura del comando es mycp <fichero origen> <fichero destino> \n", strlen("[ERROR] La estructura del comando es mycp <fichero origen> <fichero destino> \n"));
         exit(-1);
     } else if (open(ficheroOrigen, O_RDONLY) < 0) { //Comprobamos que el fichero origen exista
-        fprintf(stderr, "%s", "[ERROR] Error al abrir el fichero origen \n");
+        fprintf(stdout, "%s", "[ERROR] Error al abrir el fichero origen \n");
         exit(-1);
     }   else{
         int copia;
@@ -102,34 +100,32 @@ int my_cp(char *ficheroOrigen, char *ficheroDestino) {
         //Abrimos el fich1 en modo solo lectura.
         int fich1 = open(ficheroOrigen, O_RDONLY);
         if(fich1 < 0) {
-            fprintf(stderr, "%s", "[ERROR] Error al abrir el archivo origen");
+            fprintf(stdout, "%s", "[ERROR] Error al abrir el archivo origen");
         }
         //Abrimos el fich2, si no existe lo crea, en modo lectura y escritura.
         int fich2 = open(ficheroDestino, O_CREAT|O_WRONLY, 0666);
         if(fich2 < 0) {
-            fprintf(stderr, "%s", "[ERROR] Error al abrir el archivo destino");
+            fprintf(stdout, "%s", "[ERROR] Error al abrir el archivo destino");
         }
 
-        //Copiamos el contenido de fich1 en el buf
-        while(copia = read(fich1, buf, BUFFER_SIZE) > 0) {
-            if(write(fich2, buf, copia) != copia) {
-                fprintf(stderr, "%s", "Error al escribrir");
+        copia = read(fich1,buf,BUFFER_SIZE);
+        while(copia>0){
+            if(write(fich2,buf,copia) == -1){
+                fprintf(stdout, "%s", "[ERROR] Error al escribir\n");
+                return -1;
             }
-            if(copia == -1){
-                fprintf(stderr, "%s", "Error al leer");
+            if(read(fich1,buf,BUFFER_SIZE) == -1){
+                fprintf(stdout, "%s", "[Error] al leer\n");
+                return -1;
             }
-            //Escribimos en fich2 el contenido del buf
-            write(fich2, buf, BUFFER_SIZE);
         }
-
         close(fich1);   //cerramos el archivo origen
         close(fich2);   //cerramos el archivo destino
-        printf("[OK] Copiado con exito el fichero %s a %s\n", ficheroOrigen, ficheroDestino);
-        exit(0);
+        fprintf(stdout, "[OK] Copiado con exito el fichero %s a %s\n", ficheroOrigen, ficheroDestino);
 
     }
-}
 
+}
 /**
  * Main sheell  Loop
  */
@@ -183,10 +179,10 @@ int main(int argc, char* argv[])
         /************************ STUDENTS CODE ********************************/
         if (command_counter > 0) {
             if (command_counter > MAX_COMMANDS) {
-                fprintf(stderr, "%s", "Error: Numero máximo de comandos es 8");
+                fprintf(stdout, "%s", "Error: Numero máximo de comandos es 8");
                 exit(-1);
             }
-
+            print_command(argvv, filev, in_background);
             if(strcmp(argvv[0][0], "mycalc") == 0) { // argvv[0][0] es mycalc
                 my_calc(argvv[0][1], argvv[0][2], argvv[0][3]);
             }
@@ -212,7 +208,7 @@ int main(int argc, char* argv[])
                             close(STDIN_FILENO);
                             fich = open(filev[0], O_RDONLY); // Open utiliza el primer descriptor disponible de la tabla (el que acabamos de cerrar)
                             if(fich<0){
-                                fprintf(stderr, "%s", "Error al abrir el fichero especificado");
+                                fprintf(stdout, "%s", "Error al abrir el fichero especificado");
                                 exit(-1);
                             }
                         }
@@ -220,7 +216,7 @@ int main(int argc, char* argv[])
                             close(STDOUT_FILENO);
                             fich = open(filev[1],O_CREAT|O_WRONLY, 0666);
                             if(fich<0){
-                                fprintf(stderr, "%s", "Error al abrir el fichero especificado");
+                                fprintf(stdout, "%s", "Error al abrir el fichero especificado");
                                 exit(-1);
                             }
                         }
@@ -228,7 +224,7 @@ int main(int argc, char* argv[])
                             close(STDERR_FILENO);
                             fich = open(filev[2], O_WRONLY, 0666);
                             if(fich<0){
-                                fprintf(stderr, "%s", "Error al abrir el fichero especificado");
+                                fprintf(stdout, "%s", "Error al abrir el fichero especificado");
                                 exit(-1);
                             }
                         }
