@@ -123,6 +123,7 @@ int my_cp(char *ficheroOrigen, char *ficheroDestino) {
         close(fich2);   //cerramos el archivo destino
         fprintf(stdout, "[OK] Copiado con exito el fichero %s a %s\n", ficheroOrigen, ficheroDestino);
 
+
     }
 
 }
