@@ -23,6 +23,9 @@
 // ficheros por si hay redirección
 char filev[3][64];
 
+//variable entorno
+
+
 //to store the execvp second parameter
 char *argv_execvp[8];
 int Acc= 0;
@@ -187,63 +190,80 @@ int main(int argc, char* argv[])
             else if(strcmp(argvv[0][0], "mycp") == 0) { // argvv[0][0] es mycp
                 my_cp(argvv[0][1], argvv[0][2]);
             }
-
             else {
                 int fd[2];
                 int pid;
                 int savestdin = dup(STDIN_FILENO); // guardo la entrada estandar en el primer fd vacio
                 int savestdout = dup(STDOUT_FILENO); // guardo la salida estandar en el primer fd vacio
+                int savestderr = dup(STDERR_FILENO); // guardo la salida de error estandar en el primer fd vacio
+                int fich2 = 0; //redirección salida error
                 for(int i = 0; i < command_counter; i++){
                     pipe(fd);  // creo la tubería (posterior)
-                    if(i == command_counter-1){ //ÚLTIMO HIJO - No necesito la última tubería (cierro fd[1], el proceso hijo y el padre cierran fd[0])
-                        close(fd[1]);
 
-                        // ***************  REDIRECCIONES (las defino dentro del último hijo) **********
-                        int fich;
-                        if(strcmp(filev[0], "0") != 0){ // REDIRECCIÓN DE ENTRADA
-                            //printf("filev[0] = %s \n", filev[0]); //??
+                    if(i == 0){// PRIMER HIJO - solo compruebo si hay redirecciones
+                        // (cierra fd[0] al ejecutarse tras el fork) no comprobamos si es el único pq igualmente el ultimo hijo cierra fd[1]
+
+                        // REDIRECCIÓN DE ENTRADA - TIENE QUE SER LA ENTRADA DE LA TUBERÍA!! (PRIMER HIJO)
+                        if(strcmp(filev[0], "0") != 0){
+                            int fich0;
                             close(STDIN_FILENO);
-                            fich = open(filev[0], O_RDONLY); // Open utiliza el primer descriptor disponible de la tabla (el que acabamos de cerrar)
-                            if(fich<0){
+                            fich0 = open(filev[0], O_RDONLY); // Open utiliza el primer descriptor disponible de la tabla (el que acabamos de cerrar)
+                            if(fich0<0){ // si hay un error en la redirección me salgo del bucle sin crear ningún hijo (no hace falta el exit(-1))
                                 fprintf(stdout, "%s", "Error al abrir el fichero especificado");
-                                exit(-1);
+                                break; //restauro stdin fuera del bucle
                             }
                         }
-                        else if(strcmp(filev[1], "0") != 0){ // REDIRECCIÓN DE SALIDA - escribimos la salida de la minishell (STDOUT_FILENO) en el fichero especificado
-                            close(STDOUT_FILENO);
-                            fich = open(filev[1],O_CREAT|O_WRONLY, 0666);
-                            if(fich<0){
-                                fprintf(stdout, "%s", "Error al abrir el fichero especificado");
-                                exit(-1);
-                            }
-                        }
-                        else if(strcmp(filev[2], "0") != 0){ // REDIRECCIÓN DE SALIDA ERROR
+
+                        // REDIRECCIÓN DE SALIDA DE ERROR - se propaga en todos los hijos (no toco stderr en el fork)
+                        if(strcmp(filev[2], "0") != 0){
                             close(STDERR_FILENO);
-                            fich = open(filev[2], O_WRONLY, 0666);
-                            if(fich<0){
+                            fich2 = open(filev[2], O_CREAT|O_WRONLY, 0666);
+                            if(fich2<0){ // si hay un error en la redirección me salgo del bucle sin crear ningún hijo (y restauro stderr)
                                 fprintf(stdout, "%s", "Error al abrir el fichero especificado");
-                                exit(-1);
+                                dup2(savestderr, fich2); // dejo la salida de error estandar en su sitio
+                                close(savestderr);
+                                break;
                             }
                         }
                     }
 
-                    else{ // DEMÁS HIJOS
+                    if(i == command_counter-1){ //ÚLTIMO HIJO - No necesito la última tubería (cierro fd[1], el proceso hijo y el padre cierran fd[0])
+                        close(fd[1]);  // Si solo hay un hijo, se cierra la salida de la tubería aqui por lo que mantiene la estandar
+
+                        // REDIRECCIÓN DE SALIDA - escribimos la salida de la minishell (STDOUT_FILENO) en el fichero especificado
+                        if(strcmp(filev[1], "0") != 0){
+                            int fich1;
+                            close(STDOUT_FILENO);
+                            fich1 = open(filev[1],O_CREAT|O_WRONLY, 0666);
+                            if(fich1<0){
+                                fprintf(stdout, "%s", "Error al abrir el fichero especificado");
+                                dup2(savestdout, fich1); // restauro la salida estandar y me salgo antes de crear el último hijo
+                                close(savestdout);
+                                break;
+                            }
+                        }
+
+                    } else{ // DEMÁS HIJOS
                         dup2(fd[1], STDOUT_FILENO); //Dejo la escritura de la nueva tuberia en la salida (y la cierro)
                         close(fd[1]);               // No cierro aquí la lectura de la tubería porque la necesita el padre para concatenarla al siguiente hijo
                     }
 
                     pid = fork();
                     if(pid == 0){
-                        close(fd[0]); // La entrada del hijo es la lectura de la tubería anterior (no necesita la de la nueva, la cierra)
+                        close(fd[0]); // La entrada del hijo es la lectura de la tubería anterior (o, en caso del primer hijo, la entrada estandar o un fichero de redirección de entrada)
                         execvp(argvv[i][0], argvv[i]); // En este punto el hijo lee de la tubería de la iteración anterior y escribe en la actual
                         break;
                     } else if (pid < 0){
                         fprintf(stderr, "%s", "Error el el fork");
-                        exit(-1);
+                        if(strcmp(filev[2], "0") != 0){
+                            dup2(savestderr, fich2); // dejo la salida de error estandar en su sitio
+                            close(savestderr);
+                        }
+                        break;
                     } else{ //padre
                         if(i == command_counter-1){ // Al crear el último hijo, compruebo si está en bg (el valor de una secuencia es el valor de su último mandato)
                             if (in_background == 1) { //proceso (o secuencia) en background
-                                //printf("[1] %d \n", getpid());
+                                printf("[1] %d \n", getpid());
                                 dup2(savestdout, STDOUT_FILENO); // Dejo la salida estándar en su sitio (1)
                                 close(fd[0]);
                                 break; // me salgo sin hacer wait
@@ -251,8 +271,16 @@ int main(int argc, char* argv[])
                         }
                         wait(&status); // espera que el hijo acabe antes de crear el siguiente
                         dup2(fd[0], STDIN_FILENO); // Dejo la entrada/lectura de la tubería actual en la entrada (del siguiente hijo que creemos)
-                        dup2(savestdout, STDOUT_FILENO); // Dejo la salida estándar en su sitio (1)
                         close(fd[0]);
+                        dup2(savestdout, STDOUT_FILENO); // Dejo la salida estándar en su sitio (1)
+
+                        if(status != 0){ // si ha habido un fallo en la ejecución del hijo, me salgo del bucle (no creo más hijos)
+                            if(strcmp(filev[2], "0") != 0){ // Si había redireccion de la salida de error, la restauro
+                                dup2(savestderr, fich2);
+                                close(savestderr);
+                            }
+                            break;
+                        }
                     }
 
                 }// for
@@ -260,7 +288,6 @@ int main(int argc, char* argv[])
                 dup2(savestdin, STDIN_FILENO); // Devuelvo la entrada estándar a su sitio (la salida ya lo está)
                 close(savestdin);
                 close(savestdout);
-
             }// else
         } // cierro if command > 0
         wait(&status); //recojo a los hijos
