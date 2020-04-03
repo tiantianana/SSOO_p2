@@ -53,68 +53,64 @@ void getCompleteCommand(char*** argvv, int num_command) {
 //******************* MANDATOS INTERNOS (AÚN NO COMPILA ESTE BLOQUE )************************
 
 int my_calc(char *op1, char *operador, char *op2){
+    if (op1 == NULL || operador == NULL || op2 == NULL) {
+        fprintf(stderr, "%s", "[ERROR] La estructura del comando es <operando 1> <add/mod> <operando 2>\n");
+    }
     // COMPROBAR que los argumentos no son null/ vacíos ***************
     int Acc = 0; // variable de retorno
     int num1 = atoi(op1); // convertimos op1 y op2 a int
     int num2 = atoi(op2);
-    /* Pruebas para ver que imprime cada número
-    printf("numero 1: %d \n", num1);
-    printf("numero 2: %d \n", num2);
-    printf("operador: %s \n", operador);
-    */
+
     if(strcmp(operador,"add") == 0){ // CASO ADD
-        /* char mensaje[] = {"[OK] %d", Acc}
-        write(STDERR_FILENO, mensaje, ); antigua solución, creemos que vale con un perror pq imprime un msg por stderr*/
+        // char mensaje[] = {"[OK] %d", Acc}
         Acc = num1 + num2;
         // SI FUNCIONA LA SUMA: Escribir en la salida estandar de error el mensaje: [OK] num1 + num2 = Acc; Acc Acc
-        //char *resultado;
-        //resultado = ("[OK] %d + %d = %d; Acc %d ", num1, num2, Acc, Acc);
-        fprintf(stdout, "[OK] %d + %d = %d; Acc %d \n", num1, num2, Acc, Acc);
+        fprintf(stderr, "[OK] %d + %d = %d; Acc %d \n", num1, num2, Acc, Acc);
         //perror(resultado);
         // SI NO FUNCIONA: Escribir el resultado en la salida estandar el mensaje: [ERROR] -> AÑADIR ESTA OPCION EN LAS COMPROBACIONES
     }
     else if(strcmp(operador, "mod") == 0){ //CASO MOD
         int cociente = num1/num2;
         int resto = num1%num2;
-        fprintf(stdout, "[OK] %d %% %d = %d * %d + %d \n", num1, num2, num2, resto, cociente);
+        fprintf(stderr, "[OK] %d %% %d = %d * %d + %d \n", num1, num2, num2, resto, cociente);
     }
     else{ // OPERADOR ERRÓNEO
-        fprintf(stdout, "%s", "ERROR: no se encuentra la operación especificada \n");
-        exit(-1);
+        fprintf(stdout, "%s", "[ERROR] La estructura del comando es <operando 1> <add/mod> <operando 2>\n");
+        return -1;
     }
 }
-
 int my_cp(char *ficheroOrigen, char *ficheroDestino) {
 
     //Comprobamos parametros
-    if (ficheroDestino == NULL && ficheroOrigen == NULL || ficheroDestino == NULL ||
-        ficheroOrigen == NULL) { //Comprobamos que tenga la sintaxis que requiere el mandato
-        write(STDOUT_FILENO, "[ERROR] La estructura del comando es mycp <fichero origen> <fichero destino> \n", strlen("[ERROR] La estructura del comando es mycp <fichero origen> <fichero destino> \n"));
+    if (ficheroDestino == NULL || ficheroOrigen == NULL) { //Comprobamos que tenga la sintaxis que requiere el mandato
+        write(STDOUT_FILENO, "[ERROR] La estructura del comando es mycp <fichero origen> <fichero destino>\n",
+              strlen("[ERROR] La estructura del comando es mycp <fichero origen> <fichero destino>\n"));
         exit(-1);
-    } else if (open(ficheroOrigen, O_RDONLY) < 0) { //Comprobamos que el fichero origen exista
-        fprintf(stdout, "%s", "[ERROR] Error al abrir el fichero origen \n");
-        exit(-1);
-    }   else{
+    } else {
         int copia;
-        char buf[BUFFER_SIZE];
+        char buf[1024];
         //Abrimos el fich1 en modo solo lectura.
         int fich1 = open(ficheroOrigen, O_RDONLY);
-        if(fich1 < 0) {
+        if (fich1 < 0) {
             fprintf(stdout, "%s", "[ERROR] Error al abrir el archivo origen");
+            return -1;
         }
         //Abrimos el fich2, si no existe lo crea, en modo lectura y escritura.
-        int fich2 = open(ficheroDestino, O_CREAT|O_WRONLY, 0666);
-        if(fich2 < 0) {
+        int fich2 = open(ficheroDestino, O_CREAT | O_WRONLY, 0666);
+        if (fich2 < 0) {
             fprintf(stdout, "%s", "[ERROR] Error al abrir el archivo destino");
+            return -1;
         }
-
-        copia = read(fich1,buf,BUFFER_SIZE);
-        while(copia>0){
-            if(write(fich2,buf,copia) == -1){
+        //Creamos una copia que se va actalizando a lo largo del while
+        copia = read(fich1, &buf, sizeof(buf));
+        while (copia) {
+            if (write(fich2, &buf, copia) == -1) {
                 fprintf(stdout, "%s", "[ERROR] Error al escribir\n");
                 return -1;
             }
-            if(read(fich1,buf,BUFFER_SIZE) == -1){
+
+            copia = read(fich1, &buf, sizeof(buf));
+            if (copia == -1) {
                 fprintf(stdout, "%s", "[Error] al leer\n");
                 return -1;
             }
@@ -122,10 +118,9 @@ int my_cp(char *ficheroOrigen, char *ficheroDestino) {
         close(fich1);   //cerramos el archivo origen
         close(fich2);   //cerramos el archivo destino
         fprintf(stdout, "[OK] Copiado con exito el fichero %s a %s\n", ficheroOrigen, ficheroDestino);
-
+        return 1;
 
     }
-
 }
 /**
  * Main sheell  Loop
@@ -183,7 +178,7 @@ int main(int argc, char* argv[])
                 fprintf(stdout, "%s", "Error: Numero máximo de comandos es 8");
                 exit(-1);
             }
-            print_command(argvv, filev, in_background);
+            //print_command(argvv, filev, in_background);
             if(strcmp(argvv[0][0], "mycalc") == 0) { // argvv[0][0] es mycalc
                 my_calc(argvv[0][1], argvv[0][2], argvv[0][3]);
             }
