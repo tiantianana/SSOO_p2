@@ -25,6 +25,7 @@ char filev[3][64];
 
 //to store the execvp second parameter
 char *argv_execvp[8];
+int Acc= 0;
 
 void siginthandler(int param)
 {
@@ -52,33 +53,33 @@ void getCompleteCommand(char*** argvv, int num_command) {
 
 //******************* MANDATOS INTERNOS (AÚN NO COMPILA ESTE BLOQUE )************************
 
+
 int my_calc(char *op1, char *operador, char *op2){
     if (op1 == NULL || operador == NULL || op2 == NULL) {
         fprintf(stderr, "%s", "[ERROR] La estructura del comando es <operando 1> <add/mod> <operando 2>\n");
     }
     // COMPROBAR que los argumentos no son null/ vacíos ***************
-    int Acc = 0; // variable de retorno
+    int resultado; // variable de retorno
     int num1 = atoi(op1); // convertimos op1 y op2 a int
     int num2 = atoi(op2);
 
     if(strcmp(operador,"add") == 0){ // CASO ADD
-        // char mensaje[] = {"[OK] %d", Acc}
-        Acc = num1 + num2;
-        // SI FUNCIONA LA SUMA: Escribir en la salida estandar de error el mensaje: [OK] num1 + num2 = Acc; Acc Acc
-        fprintf(stderr, "[OK] %d + %d = %d; Acc %d \n", num1, num2, Acc, Acc);
-        //perror(resultado);
-        // SI NO FUNCIONA: Escribir el resultado en la salida estandar el mensaje: [ERROR] -> AÑADIR ESTA OPCION EN LAS COMPROBACIONES
+        resultado = num1 + num2;
+        Acc += resultado;
+        fprintf(stderr, "[OK] %d + %d = %d; Acc %d \n", num1, num2, resultado, Acc);
     }
     else if(strcmp(operador, "mod") == 0){ //CASO MOD
         int cociente = num1/num2;
         int resto = num1%num2;
-        fprintf(stderr, "[OK] %d %% %d = %d * %d + %d \n", num1, num2, num2, resto, cociente);
+        fprintf(stderr, "[OK] %d %% %d = %d * %d + %d \n", num1, num2, num2, cociente, resto);
     }
+
     else{ // OPERADOR ERRÓNEO
         fprintf(stdout, "%s", "[ERROR] La estructura del comando es <operando 1> <add/mod> <operando 2>\n");
         return -1;
     }
 }
+
 int my_cp(char *ficheroOrigen, char *ficheroDestino) {
 
     //Comprobamos parametros
