@@ -68,7 +68,7 @@ int my_calc(char *op1, char *operador, char *op2){
     int num1 = atoi(op1); // convertimos op1 y op2 a int
     int num2 = atoi(op2);
 
-    if( num1==0 && op1[0]!=0|| num2==0 && op2[0]!=0){
+    if( num1==0 && op1[0]!='0'|| num2==0 && op2[0]!='0'){
         fprintf(stdout, "%s", "[ERROR] La estructura del comando es <operando 1> <add/mod> <operando 2>\n");
         return -1;
     }
