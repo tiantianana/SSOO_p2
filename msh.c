@@ -18,17 +18,18 @@
 # define STDIN_FILENO 0
 # define STDOUT_FILENO 1
 # define STDERR_FILENO 2
-# define BUFFER_SIZE 1024
+# define BUFFER_SIZE 102
 
 // ficheros por si hay redirección
 char filev[3][64];
+char *argv_execvp[8];
 
-//variable entorno
-// extern char **environ; // apunta a una lista de variables entorno (nombre = valor)
-// int *acc = getenv("Acc"); // Devuelve un puntero al valor asociado a la variable de entorno Acc (si no está definida devuelve NULL)
+//Contador y acumualdor.
+char *Acc;
+int contador;
 
 //to store the execvp second parameter
-char *argv_execvp[8];
+
 
 void siginthandler(int param)
 {
@@ -54,34 +55,47 @@ void getCompleteCommand(char*** argvv, int num_command) {
         argv_execvp[i] = argvv[num_command][i];
 }
 
-//******************* MANDATOS INTERNOS ************************
+//******************* MANDATOS INTERNOS (AÚN NO COMPILA ESTE BLOQUE )************************
 
-int Acc = 0;
 
 int my_calc(char *op1, char *operador, char *op2){
-    if (op1 == NULL || operador == NULL || op2 == NULL) {
-        fprintf(stderr, "%s", "[ERROR] La estructura del comando es <operando 1> <add/mod> <operando 2>\n");
+    if(op1 == NULL || op2 == NULL || operador == NULL){
+        fprintf(stdout, "%s", "[ERROR] La estructura del comando es <operando 1> <add/mod> <operando 2>\n");
+        return -1;
     }
     // COMPROBAR que los argumentos no son null/ vacíos ***************
     int resultado; // variable de retorno
     int num1 = atoi(op1); // convertimos op1 y op2 a int
     int num2 = atoi(op2);
 
+    if( num1==0 && op1[0]!=0|| num2==0 && op2[0]!=0){
+        fprintf(stdout, "%s", "[ERROR] La estructura del comando es <operando 1> <add/mod> <operando 2>\n");
+        return -1;
+    }
+
     if(strcmp(operador,"add") == 0){ // CASO ADD
         resultado = num1 + num2;
-        Acc += resultado;
-        fprintf(stderr, "[OK] %d + %d = %d; Acc %d \n", num1, num2, resultado, Acc);
+        contador += resultado;
+        //El contador es un int y necesitamos convertirlo en string
+        asprintf(&Acc,"%d",contador);
+        //Establecemos en nuevo valor del acumulador
+        setenv("Acc", Acc , 1);
+        fprintf(stderr, "[OK] %d + %d = %d; Acc %s \n", num1, num2, resultado, Acc);
+        return 1;
     }
     else if(strcmp(operador, "mod") == 0){ //CASO MOD
         int cociente = num1/num2;
         int resto = num1%num2;
         fprintf(stderr, "[OK] %d %% %d = %d * %d + %d \n", num1, num2, num2, cociente, resto);
+        return 1;
     }
 
     else{ // OPERADOR ERRÓNEO
         fprintf(stdout, "%s", "[ERROR] La estructura del comando es <operando 1> <add/mod> <operando 2>\n");
         return -1;
     }
+
+
 }
 
 int my_cp(char *ficheroOrigen, char *ficheroDestino) {
@@ -90,7 +104,7 @@ int my_cp(char *ficheroOrigen, char *ficheroDestino) {
     if (ficheroDestino == NULL || ficheroOrigen == NULL) { //Comprobamos que tenga la sintaxis que requiere el mandato
         write(STDOUT_FILENO, "[ERROR] La estructura del comando es mycp <fichero origen> <fichero destino>\n",
               strlen("[ERROR] La estructura del comando es mycp <fichero origen> <fichero destino>\n"));
-        exit(-1);
+        return -1;
     } else {
         int copia;
         char buf[1024];
@@ -154,7 +168,7 @@ int main(int argc, char* argv[])
 
     char ***argvv = NULL;
     int num_commands;
-
+    setenv("Acc", "0", 1);
 
     while (1) {
         int status = 0;
@@ -183,13 +197,7 @@ int main(int argc, char* argv[])
                 fprintf(stdout, "%s", "Error: Numero máximo de comandos es 8");
                 return -1;
             }
-            // print_command(argvv, filev, in_background);
-            // for(int i=0; environ[i] != NULL; i++){
-            //     printf("environ[%d] = %s\n", i, environ[i]);
-            // }
-
-            
-
+            //print_command(argvv, filev, in_background);
             if(strcmp(argvv[0][0], "mycalc") == 0) { // argvv[0][0] es mycalc
                 my_calc(argvv[0][1], argvv[0][2], argvv[0][3]);
             }
@@ -261,7 +269,7 @@ int main(int argc, char* argv[])
                         execvp(argvv[i][0], argvv[i]); // En este punto el hijo lee de la tubería de la iteración anterior y escribe en la actual
                         break;
                     } else if (pid < 0){
-                        fprintf(stderr, "%s", "Error el el fork");
+                        fprintf(stdout, "%s", "Error el el fork");
                         if(strcmp(filev[2], "0") != 0){
                             dup2(savestderr, fich2); // dejo la salida de error estandar en su sitio
                             close(savestderr);
@@ -282,16 +290,16 @@ int main(int argc, char* argv[])
                         dup2(savestdout, STDOUT_FILENO); // Dejo la salida estándar en su sitio (1)
 
                         if(status != 0){ // si ha habido un fallo en la ejecución del hijo, me salgo del bucle (no creo más hijos)
+                            if(strcmp(filev[2], "0") != 0){ // Si había redireccion de la salida de error, la restauro
+                                dup2(savestderr, fich2);
+                                close(savestderr);
+                            }
                             break;
                         }
                     }
 
                 }// for
-            
-                if(strcmp(filev[2], "0") != 0){ // si habia redireccion de la salida de error, la restauro
-                        dup2(savestderr, fich2);
-                        close(savestderr);
-                }
+
                 dup2(savestdin, STDIN_FILENO); // Devuelvo la entrada estándar a su sitio (la salida ya lo está)
                 close(savestdin);
                 close(savestdout);
