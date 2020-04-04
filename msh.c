@@ -55,7 +55,7 @@ void getCompleteCommand(char*** argvv, int num_command) {
         argv_execvp[i] = argvv[num_command][i];
 }
 
-//******************* MANDATOS INTERNOS (AÚN NO COMPILA ESTE BLOQUE )************************
+//******************* MANDATOS INTERNOS ************************
 
 
 int my_calc(char *op1, char *operador, char *op2){
