@@ -24,11 +24,11 @@
 char filev[3][64];
 
 //variable entorno
-
+// extern char **environ; // apunta a una lista de variables entorno (nombre = valor)
+// int *acc = getenv("Acc"); // Devuelve un puntero al valor asociado a la variable de entorno Acc (si no está definida devuelve NULL)
 
 //to store the execvp second parameter
 char *argv_execvp[8];
-int Acc= 0;
 
 void siginthandler(int param)
 {
@@ -54,8 +54,9 @@ void getCompleteCommand(char*** argvv, int num_command) {
         argv_execvp[i] = argvv[num_command][i];
 }
 
-//******************* MANDATOS INTERNOS (AÚN NO COMPILA ESTE BLOQUE )************************
+//******************* MANDATOS INTERNOS ************************
 
+int Acc = 0;
 
 int my_calc(char *op1, char *operador, char *op2){
     if (op1 == NULL || operador == NULL || op2 == NULL) {
@@ -180,9 +181,15 @@ int main(int argc, char* argv[])
         if (command_counter > 0) {
             if (command_counter > MAX_COMMANDS) {
                 fprintf(stdout, "%s", "Error: Numero máximo de comandos es 8");
-                exit(-1);
+                return -1;
             }
-            //print_command(argvv, filev, in_background);
+            // print_command(argvv, filev, in_background);
+            // for(int i=0; environ[i] != NULL; i++){
+            //     printf("environ[%d] = %s\n", i, environ[i]);
+            // }
+
+            
+
             if(strcmp(argvv[0][0], "mycalc") == 0) { // argvv[0][0] es mycalc
                 my_calc(argvv[0][1], argvv[0][2], argvv[0][3]);
             }
@@ -275,16 +282,16 @@ int main(int argc, char* argv[])
                         dup2(savestdout, STDOUT_FILENO); // Dejo la salida estándar en su sitio (1)
 
                         if(status != 0){ // si ha habido un fallo en la ejecución del hijo, me salgo del bucle (no creo más hijos)
-                            if(strcmp(filev[2], "0") != 0){ // Si había redireccion de la salida de error, la restauro
-                                dup2(savestderr, fich2);
-                                close(savestderr);
-                            }
                             break;
                         }
                     }
 
                 }// for
-
+            
+                if(strcmp(filev[2], "0") != 0){ // si habia redireccion de la salida de error, la restauro
+                        dup2(savestderr, fich2);
+                        close(savestderr);
+                }
                 dup2(savestdin, STDIN_FILENO); // Devuelvo la entrada estándar a su sitio (la salida ya lo está)
                 close(savestdin);
                 close(savestdout);
